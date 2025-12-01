@@ -357,7 +357,7 @@ def main():
         exit_code = 1
     else:
         print("🟢 Not Compromised (no obvious indicators found by this script)")
-        print("(This does NOT guarantee absolute safety, but nothing obvious stood out.)")
+        print("(this does NOT guarantee absolute safety, but nothing obvious stood out.)")
         exit_code = 0
 
     print("Logs saved in:", outdir)
