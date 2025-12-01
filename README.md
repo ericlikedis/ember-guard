@@ -7,7 +7,8 @@ a lightweight macos triage and forensic collection tool designed for quick safet
 this tool does **not** modify your system. all actions are read-only and safe to run on any mac.
 
 ---
-<img width="2515" height="1182" alt="image" src="https://github.com/user-attachments/assets/77627588-679f-4b2f-9d43-746a75cf768a" />
+
+<img width="2494" height="662" alt="Brave Browser-2025-12-01-16-12" src="https://github.com/user-attachments/assets/77d5bcfc-43a4-4484-a2a2-b379637e31d9" />
 
 ---
 
