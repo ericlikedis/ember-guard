@@ -8,67 +8,26 @@ this tool does **not** modify your system. all actions are read-only and safe to
 
 ---
 
-flowchart TD
+```mermaid
+flowchart LR
+    A["user runs script (python3 mactriage.py [output_dir])"] --> B["parse optional output directory argument"]
+    B --> C["determine base directory (argument or script location)"]
+    C --> D["create timestamped folder: mac_quickcheck_YYYYMMDD_HHMMSS"]
 
-    A[start: user runs script  
-    `python3 mactriage.py [output_base_dir]`] --> B[parse optional output directory argument]
+    D --> E["collect_system_info() -> system_info.txt"]
+    E --> F["collect_autoruns() -> autoruns.txt + run autorun heuristics"]
+    F --> G["collect_network() -> network_listening_ports.txt, network_all_connections.txt + run network heuristics"]
+    G --> H["collect_installs() -> software_installs.txt + run install heuristics"]
+    H --> I["collect_quarantine() -> quarantine_events.txt + run quarantine heuristics"]
+    I --> J["collect_logins() -> login_activity_1d.txt + run auth heuristics"]
 
-    B --> C[determine base directory  
-    (arg or script location)]
-    C --> D[create timestamped output folder  
-    `mac_quickcheck_YYYYMMDD_HHMMSS`]
+    J --> K{"any suspicious findings?"}
+    K -- "yes" --> L["print summary: compromised or suspicious, list findings, exit code 1"]
+    K -- "no"  --> M["print summary: not compromised, exit code 0"]
 
-    D --> E[collect_system_info()  
-    - sw_vers  
-    - system_profiler  
-    -> system_info.txt]
-
-    E --> F[collect_autoruns()  
-    - user launchagents  
-    - global launchagents  
-    - launchdaemons  
-    - recent changes  
-    -> autoruns.txt  
-    + run heuristics on filenames]
-
-    F --> G[collect_network()  
-    - lsof listening ports  
-    -> network_listening_ports.txt  
-    - lsof all connections  
-    -> network_all_connections.txt  
-    + run heuristics on process names]
-
-    G --> H[collect_installs()  
-    - grep "Installed" from /var/log/install.log  
-    -> software_installs.txt  
-    + run heuristics on install lines]
-
-    H --> I[collect_quarantine()  
-    - read quarantine sqlite db (if present)  
-    -> quarantine_events.txt  
-    + run heuristics on apps / urls]
-
-    I --> J[collect_logins()  
-    - mac unified log (last 1 day)  
-    -> login_activity_1d.txt  
-    + scan for failed login patterns / ssh activity]
-
-    J --> K{any suspicious findings?}
-
-    K -- yes --> L[record findings in memory  
-    (FINDINGS list)]
-    L --> M[print summary:  
-    ❗️ compromised (or suspicious)  
-    + list heuristic hits  
-    + exit code 1]
-
-    K -- no --> N[print summary:  
-    🟢 not compromised  
-    (no obvious indicators)  
-    + exit code 0]
-
-    M --> O[end]
-    N --> O[end]
+    L --> N["end"]
+    M --> N["end"]
+```
 
 ---
 
