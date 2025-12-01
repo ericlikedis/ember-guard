@@ -1,6 +1,6 @@
 # ember-guard
 
-<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/6634f3e0-35ce-4273-b14d-a2bf89520119" />
+<img width="80" height="80" alt="image" src="https://github.com/user-attachments/assets/6634f3e0-35ce-4273-b14d-a2bf89520119" />
 
 a lightweight macos triage and forensic collection tool designed for quick safety checks, troubleshooting, and digital forensics readiness. it gathers key system information, autoruns, network activity, install logs, quarantine events, and login activity, then generates a simple verdict:
 
