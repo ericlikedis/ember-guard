@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""
-mac_forensics.py
-Basic Mac triage script (read-only).
-Collects system, autoruns, network, install, quarantine, and login info.
-
-- Output directory is dynamic:
-  * Default: a timestamped folder in the same directory as this script.
-  * Optional: pass a base directory as the first argument:
-      python3 mac_forensics.py /path/to/output_base
-
-- Includes a simple heuristic "verdict":
-    🟢 Not Compromised
-    ❗️Compromised (or at least suspicious)
-
-  NOTE: This is NOT a full antivirus. It just looks for obvious red flags
-  using simple keyword-based rules.
-"""
 
 import os
 import sys
