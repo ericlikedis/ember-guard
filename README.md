@@ -56,3 +56,10 @@ clone or download the repository:
 ```bash
 git clone https://github.com/ericlikedis/ember-guard.git
 cd ember-guard
+```
+
+## running
+
+```python
+python3 ember_guard.py
+```
