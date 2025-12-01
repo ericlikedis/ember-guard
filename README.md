@@ -8,26 +8,7 @@ this tool does **not** modify your system. all actions are read-only and safe to
 
 ---
 
-```mermaid
-flowchart LR
-    A["user runs script (python3 mactriage.py [output_dir])"] --> B["parse optional output directory argument"]
-    B --> C["determine base directory (argument or script location)"]
-    C --> D["create timestamped folder: mac_quickcheck_YYYYMMDD_HHMMSS"]
-
-    D --> E["collect_system_info() -> system_info.txt"]
-    E --> F["collect_autoruns() -> autoruns.txt + run autorun heuristics"]
-    F --> G["collect_network() -> network_listening_ports.txt, network_all_connections.txt + run network heuristics"]
-    G --> H["collect_installs() -> software_installs.txt + run install heuristics"]
-    H --> I["collect_quarantine() -> quarantine_events.txt + run quarantine heuristics"]
-    I --> J["collect_logins() -> login_activity_1d.txt + run auth heuristics"]
-
-    J --> K{"any suspicious findings?"}
-    K -- "yes" --> L["print summary: compromised or suspicious, list findings, exit code 1"]
-    K -- "no"  --> M["print summary: not compromised, exit code 0"]
-
-    L --> N["end"]
-    M --> N["end"]
-```
+<img width="672" height="406" alt="image" src="https://github.com/user-attachments/assets/9de1bec2-2840-4990-91d5-9a8cb52dc281" />
 
 ---
 
