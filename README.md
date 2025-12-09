@@ -64,5 +64,24 @@ cd ember-guard
 python3 ember_guard.py
 ```
 
+## running globally
+
+simply move the script to `/usr/local/bin` directory
+> make sure you are in the working directory where the script is first before running the command below! 
+```
+sudo mv ember-guard.py /usr/local/bin
+```
+
+> add an alias in your `.bashrc` or `.zshrc`
+```
+alias ember-guard="python3 /usr/local/bin/ember-guard.py
+```
+> save & source your `.bashrc` or `.zshrc`
+```
+source .zshrc
+```
+once all these stpes are complete you should be able to run `ember-guard` from any directory. 
+> NOTE: this will save any log files in the directory the script runs from, in this case `/usr/local/bin/mac_quickcheck*`
+
 ![iTerm2-2025-12-09-10-18](https://github.com/user-attachments/assets/e52cb887-4e2a-4e72-9fa8-81a149a8e5d9)
 
