@@ -80,7 +80,7 @@ alias ember-guard="python3 /usr/local/bin/ember-guard.py
 ```
 source .zshrc
 ```
-once all these stpes are complete you should be able to run `ember-guard` from any directory. 
+once all these steps are complete you should be able to run `ember-guard` from any directory. 
 > NOTE: this will save any log files in the directory the script runs from, in this case `/usr/local/bin/mac_quickcheck*`
 
 ![iTerm2-2025-12-09-10-18](https://github.com/user-attachments/assets/e52cb887-4e2a-4e72-9fa8-81a149a8e5d9)
