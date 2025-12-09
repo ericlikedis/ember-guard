@@ -63,3 +63,6 @@ cd ember-guard
 ```python
 python3 ember_guard.py
 ```
+
+![iTerm2-2025-12-09-10-18](https://github.com/user-attachments/assets/e52cb887-4e2a-4e72-9fa8-81a149a8e5d9)
+
