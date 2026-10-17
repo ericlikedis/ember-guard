@@ -32,7 +32,10 @@ this tool does **not** modify your system. all actions are read-only and safe to
   - process names  
   - install records  
   - login/auth anomalies  
-- produces a clear summary verdict
+- produces a clear summary verdict:
+  - 🟢 not compromised (exit code 0)
+  - ❗️ compromised or suspicious (exit code 1)
+  - 🟡 inconclusive: nothing flagged, but some checks couldn't fully run, e.g. missing permissions or a timeout (exit code 2)
 - cross-user friendly — anyone can drop the script into any folder and run it
 
 ---
@@ -46,6 +49,12 @@ this tool does **not** modify your system. all actions are read-only and safe to
   - `log`
   - `sqlite3`
   - `system_profiler`
+
+---
+
+## permissions
+
+for fuller coverage, grant your terminal Full Disk Access and run with `sudo`. without them, some checks (like `lsof`) only see your own data and the verdict will be 🟡 inconclusive rather than 🟢.
 
 ---
 

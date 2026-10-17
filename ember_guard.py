@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import os
+import re
 import sys
 import subprocess
 import sqlite3
@@ -11,27 +14,36 @@ from datetime import datetime, timedelta
 
 FINDINGS: list[tuple[str, str]] = []
 
-# Very simple suspicious keywords (all lowercased).
-SUSPICIOUS_KEYWORDS = [
+# Checks that could not read their data (permissions, timeouts, missing files).
+# A clean result with gaps is "inconclusive", not "not compromised".
+GAPS: list[tuple[str, str]] = []
+
+# Long, distinctive keywords: matched as a substring of a word (all lowercased).
+SUBSTRING_KEYWORDS = [
     "xmrig",
-    "miner",
     "cryptominer",
-    "rat",
     "keylog",
-    "logger",
     "stealer",
-    "steal",
     "trojan",
     "backdoor",
     "remoteaccess",
-    # keep "malware" but guard it with SAFE_WORDS below
     "malware",
 ]
 
-# Whitelist words that are typically security tools, not threats.
-SAFE_WORDS = [
+# Short keywords that sit inside many harmless words ("operator", "migrate",
+# "syslogger"), so they only match as a whole word.
+WORD_KEYWORDS = {
+    "rat",
+    "miner",
+    "logger",
+    "steal",
+}
+
+# Security products. These words are dropped from a name before checking it,
+# so "malwarebytes" isn't flagged for containing "malware". Only the product
+# word is dropped: "avast-rat" still flags on "rat".
+SAFE_WORDS = {
     "malwarebytes",
-    "windows defender",
     "defender",
     "crowdstrike",
     "sentinelone",
@@ -44,7 +56,7 @@ SAFE_WORDS = [
     "mcafee",
     "norton",
     "clamav",
-]
+}
 
 
 def flag(category: str, detail: str):
@@ -53,28 +65,35 @@ def flag(category: str, detail: str):
     FINDINGS.append((category, detail))
 
 
+def note_gap(source: str, reason: str):
+    """Record that a check could not fully run."""
+    print(f"[~] Incomplete {source}: {reason}")
+    GAPS.append((source, reason))
+
+
 def looks_suspicious_name(name: str) -> bool:
-    """Check if a filename/process name looks suspicious based on keywords,
-    while skipping obvious security products (SAFE_WORDS).
+    """Check if a filename/process name looks suspicious based on keywords.
+
+    The name is split into alphabetic words. Known security-product words are
+    dropped, then short keywords must match a whole word and long keywords may
+    match inside a word.
     """
-    n = name.lower()
+    words = [w for w in re.split(r"[^a-z]+", name.lower()) if w]
+    words = [w for w in words if w not in SAFE_WORDS]
 
-    # If it contains a known safe word, don't treat it as suspicious.
-    for safe in SAFE_WORDS:
-        if safe in n:
-            return False
-
-    for kw in SUSPICIOUS_KEYWORDS:
-        if kw in n:
+    for w in words:
+        if w in WORD_KEYWORDS:
             return True
+        for kw in SUBSTRING_KEYWORDS:
+            if kw in w:
+                return True
 
     return False
 
 
-
 # ---------------- Shell helper ---------------- #
 
-def run_cmd(cmd, text=True, timeout=None) -> str:
+def run_cmd(cmd, timeout=None) -> str:
     """Run a command and return stdout as string. Never raises on failure.
 
     timeout: in seconds; if exceeded, partial output is returned with a note.
@@ -84,13 +103,15 @@ def run_cmd(cmd, text=True, timeout=None) -> str:
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=text,
             timeout=timeout,
             check=False,
         )
-        return result.stdout
+        return result.stdout.decode("utf-8", errors="replace")
     except subprocess.TimeoutExpired as e:
-        partial = e.stdout or ""
+        # e.stdout is bytes (or None) even when text mode is requested.
+        partial = e.stdout or b""
+        if isinstance(partial, bytes):
+            partial = partial.decode("utf-8", errors="replace")
         return partial + f"\n[!] Command timed out after {timeout} seconds: {cmd}\n"
     except Exception as e:
         return f"[!] Failed to run {cmd}: {e}\n"
@@ -147,10 +168,15 @@ def collect_autoruns(outdir: Path):
                         if basename.lower() not in {".ds_store"}:
                             if looks_suspicious_name(basename):
                                 flag("autorun", f"suspicious launch item filename: {entry}")
+                    except FileNotFoundError:
+                        # Dangling symlink: listed, but not a coverage gap.
+                        content.append(f"[!] Broken link or missing target: {entry}\n")
                     except Exception as e:
                         content.append(f"[!] Error reading {entry}: {e}\n")
+                        note_gap("autoruns", f"could not read {entry}: {e}")
             except PermissionError:
                 content.append("Permission denied\n")
+                note_gap("autoruns", f"permission denied reading {d}")
         else:
             content.append("Directory does not exist\n")
         content.append("\n")
@@ -181,6 +207,11 @@ def collect_network(outdir: Path):
     listening = run_cmd(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"])
     write_file(outdir / "network_listening_ports.txt", listening)
 
+    if listening.startswith("[!]") or "[!] Command timed out" in listening:
+        note_gap("network", listening.strip().splitlines()[0])
+    elif os.geteuid() != 0:
+        note_gap("network", "lsof only shows your own processes; run with sudo to see all")
+
     # Simple heuristics: any suspicious process names in listening sockets?
     for line in listening.splitlines():
         if not line or line.startswith("COMMAND"):
@@ -205,10 +236,13 @@ def collect_installs(outdir: Path):
     install_log = Path("/var/log/install.log")
     if not install_log.exists():
         write_file(outdir / "software_installs.txt", "/var/log/install.log not found\n")
+        note_gap("installs", "/var/log/install.log not found")
         return
 
     try:
         grep_output = run_cmd(["grep", "Installed", str(install_log)])
+        if grep_output.startswith(("grep:", "[!]")):
+            note_gap("installs", grep_output.strip().splitlines()[0])
         lines = grep_output.splitlines()
         last_200 = "\n".join(lines[-200:])
         write_file(outdir / "software_installs.txt", last_200 + "\n")
@@ -220,6 +254,7 @@ def collect_installs(outdir: Path):
                 flag("install", f"suspicious software install line: {line}")
     except Exception as e:
         write_file(outdir / "software_installs.txt", f"[!] Failed to read install.log: {e}\n")
+        note_gap("installs", f"failed to read install.log: {e}")
 
 
 def find_quarantine_db() -> Path | None:
@@ -239,6 +274,7 @@ def collect_quarantine(outdir: Path):
     quar_db = find_quarantine_db()
     if quar_db is None:
         write_file(outdir / "quarantine_events.txt", "No quarantine database found\n")
+        note_gap("quarantine", "no quarantine database found")
         return
 
     out_lines = ["Time (local), App, URL\n"]
@@ -268,6 +304,7 @@ def collect_quarantine(outdir: Path):
         conn.close()
     except Exception as e:
         out_lines.append(f"[!] Failed to read quarantine DB: {e}\n")
+        note_gap("quarantine", f"failed to read quarantine DB: {e}")
 
     write_file(outdir / "quarantine_events.txt", "".join(out_lines))
 
@@ -288,20 +325,29 @@ def collect_logins(outdir: Path):
     output = run_cmd(cmd, timeout=60)
     write_file(outdir / "login_activity_1d.txt", output)
 
-    # Heuristics: failed logins, ssh, sudo abuse
-    lower = output.lower()
-    suspicious_login_markers = [
-        "failed password",
-        "invalid user",
-        "authentication failure",
-    ]
-    for marker in suspicious_login_markers:
-        if marker in lower:
-            flag("auth", f"login/auth log contains marker: '{marker}'")
+    if output.startswith("[!]") or "[!] Command timed out" in output:
+        note_gap("auth", "log show failed or timed out; auth events may be missing")
+    elif output.lstrip().startswith("log:"):
+        note_gap("auth", output.strip().splitlines()[0])
+
+    # Heuristics, applied per sshd/su line so macOS-normal noise (sudo typos,
+    # loginwindow) doesn't trigger them. Flags include the matching line.
+    failure_markers = ["failed password", "invalid user", "authentication failure"]
+    sshd_lines = []
+    for line in output.splitlines():
+        lower = line.lower()
+        if "sshd[" in lower:
+            sshd_lines.append(line)
+        if "sshd[" in lower or " su[" in lower:
+            for marker in failure_markers:
+                if marker in lower:
+                    flag("auth", f"'{marker}' in log line: {line.strip()}")
+                    break
 
     # If we see sshd at all, that may be interesting on a laptop
-    if "sshd[" in output:
-        flag("auth", "sshd activity seen in last 1 day")
+    if sshd_lines:
+        flag("auth", f"sshd activity seen in last 1 day ({len(sshd_lines)} lines, "
+                     f"first: {sshd_lines[0].strip()})")
 
 
 # ---------------- Output dir & main ---------------- #
@@ -355,10 +401,20 @@ def main():
             print(f"- [{category}] {detail}")
         print("\n(Consider deeper investigation or professional DFIR help.)")
         exit_code = 1
+    elif GAPS:
+        print("🟡 Inconclusive – nothing flagged, but some checks could not fully run:")
+        exit_code = 2
     else:
         print("🟢 Not Compromised (no obvious indicators found by this script)")
         print("(this does NOT guarantee absolute safety, but nothing obvious stood out.)")
         exit_code = 0
+
+    if GAPS:
+        if FINDINGS:
+            print("\nIncomplete checks:")
+        for source, reason in GAPS:
+            print(f"- [{source}] {reason}")
+        print("(Grant Terminal Full Disk Access and/or run with sudo for fuller coverage.)")
 
     print("Logs saved in:", outdir)
     print("=========================================\n")
